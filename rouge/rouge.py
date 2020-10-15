@@ -27,13 +27,14 @@ class FilesRouge:
         ref_lc = line_count(ref_path)
         assert(hyp_lc == ref_lc)
 
-    def get_scores(self, hyp_path, ref_path, avg=False, ignore_empty=False):
+    def get_scores(self, hyp_path, ref_path, avg=False, ignore_empty=False, scoring=scoring):
         """Calculate ROUGE scores between each pair of
         lines (hyp_file[i], ref_file[i]).
         Args:
           * hyp_path: hypothesis file path
           * ref_path: references file path
           * avg (False): whether to get an average scores or a list
+          * scoring: model average or best model for momultiple references 
         """
         self._check_files(hyp_path, ref_path)
 
@@ -43,7 +44,7 @@ class FilesRouge:
         with io.open(ref_path, encoding="utf-8", mode="r") as ref_file:
             refs = [line[:-1] for line in ref_file]
 
-        return self.rouge.get_scores(hyps, refs, avg=avg,
+        return self.rouge.get_scores(hyps, refs, avg=avg, scoring=scoring,
                                      ignore_empty=ignore_empty)
 
 
@@ -85,7 +86,7 @@ class Rouge:
             else:
                 self.stats = Rouge.DEFAULT_STATS
 
-    def get_scores(self, hyps, refs, avg=False, ignore_empty=False):
+    def get_scores(self, hyps, refs, avg=False, ignore_empty=False, scoring=scoring):
         if isinstance(hyps, six.string_types):
             hyps, refs = [hyps], [refs]
 
@@ -143,6 +144,7 @@ class Rouge:
             for m in self.metrics:
                 fn = Rouge.AVAILABLE_METRICS[m]
                 sc = fn(hyp, ref, exclusive=self.exclusive)
+                # ここに記載する
                 scores[m] = {s: scores[m][s] + sc[s] for s in self.stats}
 
             if self.return_lengths:

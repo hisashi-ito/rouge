@@ -25,11 +25,14 @@ def main():
     parser.add_argument("--stats", nargs="+", type=str.upper,
                         choices=STATS_CHOICES,
                         help="Stats to use (default=all)")
-
+    parser.add_argument("--scoring", nargs="+", type=str.upper,
+                        choices=["average", "best"],
+                        help="Select scoring formula")
     args = parser.parse_args()
 
     metrics = args.metrics
     stats = args.stats
+    scoring = args.scoring # for multiple references
 
     if metrics is not None:
         metrics = [METRICS_CHOICES[m] for m in args.metrics]
