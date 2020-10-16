@@ -33,7 +33,7 @@ optional arguments:
   -h, --help  show this help message and exit
   -f, --file  File mode
   -a, --avg   Average mode
-
+  -s, --scoring Multiple References mode (A: average, B: best)
 ```
 
 e.g. 

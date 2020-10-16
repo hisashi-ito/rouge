@@ -25,9 +25,9 @@ def main():
     parser.add_argument("--stats", nargs="+", type=str.upper,
                         choices=STATS_CHOICES,
                         help="Stats to use (default=all)")
-    parser.add_argument("--scoring", type=str.upper,
+    parser.add_argument('-s', '--scoring', type=str.upper,
                         choices=['A', 'B'],
-                        help="Select scoring formula A: average, B: best")
+                        help='Select scoring formula A: average, B: best')
     args = parser.parse_args()
 
     metrics = args.metrics
