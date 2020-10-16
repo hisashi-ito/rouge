@@ -11,7 +11,7 @@ class FilesRouge:
         """See the `Rouge` class for args
         """
         self.rouge = Rouge(*args, **kwargs)
-
+        
     def _check_files(self, hyp_path, ref_path):
         assert(os.path.isfile(hyp_path))
         assert(os.path.isfile(ref_path))
@@ -27,14 +27,14 @@ class FilesRouge:
         ref_lc = line_count(ref_path)
         assert(hyp_lc == ref_lc)
 
-    def get_scores(self, hyp_path, ref_path, avg=False, ignore_empty=False, scoring=scoring):
+    def get_scores(self, hyp_path, ref_path, avg=False, ignore_empty=False, scoring=None):
         """Calculate ROUGE scores between each pair of
         lines (hyp_file[i], ref_file[i]).
         Args:
           * hyp_path: hypothesis file path
           * ref_path: references file path
           * avg (False): whether to get an average scores or a list
-          * scoring: model average or best model for momultiple references 
+          * scoring: model average (A) or best model (B) for momultiple references 
         """
         self._check_files(hyp_path, ref_path)
 
@@ -43,9 +43,8 @@ class FilesRouge:
 
         with io.open(ref_path, encoding="utf-8", mode="r") as ref_file:
             refs = [line[:-1] for line in ref_file]
-
-        return self.rouge.get_scores(hyps, refs, avg=avg, scoring=scoring,
-                                     ignore_empty=ignore_empty)
+            return self.rouge.get_scores(hyps, refs, avg=avg,
+                                         ignore_empty=ignore_empty, scoring=scoring)
 
 
 class Rouge:
@@ -64,7 +63,6 @@ class Rouge:
         self.return_lengths = return_lengths
         self.raw_results = raw_results
         self.exclusive = exclusive
-
         if metrics is not None:
             self.metrics = [m.lower() for m in metrics]
 
@@ -86,7 +84,7 @@ class Rouge:
             else:
                 self.stats = Rouge.DEFAULT_STATS
 
-    def get_scores(self, hyps, refs, avg=False, ignore_empty=False, scoring=scoring):
+    def get_scores(self, hyps, refs, avg=False, ignore_empty=False, scoring=None):
         if isinstance(hyps, six.string_types):
             hyps, refs = [hyps], [refs]
 
@@ -103,13 +101,13 @@ class Rouge:
 
         if not avg:
             return self._get_scores(hyps, refs)
-        return self._get_avg_scores(hyps, refs)
+        # ave のほうへ一旦追加
+        return self._get_avg_scores(hyps, refs, scoring)
 
     def _get_scores(self, hyps, refs):
         scores = []
         for hyp, ref in zip(hyps, refs):
             sen_score = {}
-
             hyp = [" ".join(_.split()) for _ in hyp.split(".") if len(_) > 0]
             ref = [" ".join(_.split()) for _ in ref.split(".") if len(_) > 0]
 
@@ -131,27 +129,55 @@ class Rouge:
             scores.append(sen_score)
         return scores
 
-    def _get_avg_scores(self, hyps, refs):
+    def _get_avg_scores(self, hyps, refs, scoring=None):
         scores = {m: {s: 0 for s in self.stats} for m in self.metrics}
         if self.return_lengths:
             scores["lengths"] = {"hyp": 0, "ref": 0}
-
         count = 0
         for (hyp, ref) in zip(hyps, refs):
-            hyp = [" ".join(_.split()) for _ in hyp.split(".") if len(_) > 0]
-            ref = [" ".join(_.split()) for _ in ref.split(".") if len(_) > 0]
+            if scoring in ["A", "B"]:
+                partial_scores = {m: {s: [] for s in self.stats} for m in self.metrics}
+                hyp = [" ".join(_.split()) for _ in hyp.split(".") if len(_) > 0]
+                partial_ref_length = []
+                # 正解データが複数<TAB>で分割されている想定
+                for r in ref.split("\t"):
+                    partial_ref = [" ".join(_.split()) for _ in r.split(".") if len(_) > 0]
+                    partial_ref_length.append(len(" ".join(partial_ref).split()))
+                    for m in self.metrics:
+                        fn = Rouge.AVAILABLE_METRICS[m]
+                        sc = fn(hyp, partial_ref, exclusive=self.exclusive)
+                        for s in self.stats:
+                            partial_scores[m][s].append(sc[s])
 
-            for m in self.metrics:
-                fn = Rouge.AVAILABLE_METRICS[m]
-                sc = fn(hyp, ref, exclusive=self.exclusive)
-                # ここに記載する
-                scores[m] = {s: scores[m][s] + sc[s] for s in self.stats}
+                # スコアのマージ(ave:A, best:B)
+                for m in self.metrics:
+                    for s in self.stats:
+                        if scoring == "A":
+                            scores[m][s] = sum(partial_scores[m][s]) / len(partial_scores[m][s])
+                        else:
+                            scores[m][s] = max(partial_scores[m][s])
+                            
+                if self.return_lengths:
+                    scores["lengths"]["hyp"] += len(" ".join(hyp).split())
+                    if scoring == "A":
+                        scores["lengths"]["ref"] += sum(partial_ref_length) / len(partial_ref_length)
+                    else:
+                        scores["lengths"]["ref"] += max(partial_ref_length)
 
-            if self.return_lengths:
-                scores["lengths"]["hyp"] += len(" ".join(hyp).split())
-                scores["lengths"]["ref"] += len(" ".join(ref).split())
+            else:
+                hyp = [" ".join(_.split()) for _ in hyp.split(".") if len(_) > 0]
+                ref = [" ".join(_.split()) for _ in ref.split(".") if len(_) > 0]
 
+                for m in self.metrics:
+                    fn = Rouge.AVAILABLE_METRICS[m]
+                    sc = fn(hyp, ref, exclusive=self.exclusive)
+                    scores[m] = {s: scores[m][s] + sc[s] for s in self.stats}
+
+                if self.return_lengths:
+                    scores["lengths"]["hyp"] += len(" ".join(hyp).split())
+                    scores["lengths"]["ref"] += len(" ".join(ref).split())
             count += 1
+            
         avg_scores = {
             m: {s: scores[m][s] / count for s in self.stats}
             for m in self.metrics
@@ -162,5 +188,4 @@ class Rouge:
                 k: scores["lengths"][k] / count
                 for k in ["hyp", "ref"]
             }
-
         return avg_scores

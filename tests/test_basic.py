@@ -1,4 +1,8 @@
+import unittest
 from unittest import TestCase
+
+import sys
+sys.path.append("..")
 
 import rouge
 import json
@@ -6,16 +10,16 @@ import json
 
 class BasicTest(TestCase):
     def setUp(self):
-        self.hyp_path = './tests/hyp.txt'
-        self.ref_path = './tests/ref.txt'
+        self.hyp_path = './hyp.txt'
+        self.ref_path = './ref.txt'
 
-        self.data_path = './tests/data.json'
+        self.data_path = './data.json'
         with open(self.data_path) as f:
             self.data = json.load(f)
 
         self.rouge = rouge.Rouge()
         self.files_rouge = rouge.FilesRouge()
-
+        
     def test_one_sentence(self):
         for d in self.data[:1]:
             hyp = d["hyp"]
@@ -36,3 +40,7 @@ class BasicTest(TestCase):
         expected_scores = [d['scores'] for d in data]
         scores = self.files_rouge.get_scores(self.hyp_path, self.ref_path)
         self.assertEqual(expected_scores, scores)
+
+        
+if __name__ == "__main__":
+    unittest.main()

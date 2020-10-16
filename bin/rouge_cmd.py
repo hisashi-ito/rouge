@@ -25,15 +25,14 @@ def main():
     parser.add_argument("--stats", nargs="+", type=str.upper,
                         choices=STATS_CHOICES,
                         help="Stats to use (default=all)")
-    parser.add_argument("--scoring", nargs="+", type=str.upper,
-                        choices=["average", "best"],
-                        help="Select scoring formula")
+    parser.add_argument("--scoring", type=str.upper,
+                        choices=['A', 'B'],
+                        help="Select scoring formula A: average, B: best")
     args = parser.parse_args()
 
     metrics = args.metrics
     stats = args.stats
-    scoring = args.scoring # for multiple references
-
+    
     if metrics is not None:
         metrics = [METRICS_CHOICES[m] for m in args.metrics]
 
@@ -41,10 +40,10 @@ def main():
         hyp, ref = args.hypothesis, args.reference
         assert(os.path.isfile(hyp))
         assert(os.path.isfile(ref))
-
+        
         files_rouge = FilesRouge(metrics, stats)
         scores = files_rouge.get_scores(
-            hyp, ref, avg=args.avg, ignore_empty=args.ignore_empty)
+            hyp, ref, avg=args.avg, ignore_empty=args.ignore_empty, scoring=args.scoring)
 
         print(json.dumps(scores, indent=2))
     else:
