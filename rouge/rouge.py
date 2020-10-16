@@ -43,8 +43,9 @@ class FilesRouge:
 
         with io.open(ref_path, encoding="utf-8", mode="r") as ref_file:
             refs = [line[:-1] for line in ref_file]
-            return self.rouge.get_scores(hyps, refs, avg=avg,
-                                         ignore_empty=ignore_empty, scoring=scoring)
+
+        return self.rouge.get_scores(hyps, refs, avg=avg,
+                                     ignore_empty=ignore_empty, scoring=scoring)
 
 
 class Rouge:
@@ -163,11 +164,12 @@ class Rouge:
                         scores["lengths"]["ref"] += sum(partial_ref_length) / len(partial_ref_length)
                     else:
                         scores["lengths"]["ref"] += max(partial_ref_length)
-
             else:
+                # scoring 指定なしの場合に
+                # ref が<TAB>で複数ある場合は先頭を利用する
+                ref = ref.split("\t")[0]
                 hyp = [" ".join(_.split()) for _ in hyp.split(".") if len(_) > 0]
                 ref = [" ".join(_.split()) for _ in ref.split(".") if len(_) > 0]
-
                 for m in self.metrics:
                     fn = Rouge.AVAILABLE_METRICS[m]
                     sc = fn(hyp, ref, exclusive=self.exclusive)
