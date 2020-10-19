@@ -149,21 +149,30 @@ class Rouge:
                         sc = fn(hyp, partial_ref, exclusive=self.exclusive)
                         for s in self.stats:
                             partial_scores[m][s].append(sc[s])
-
-                # スコアのマージ(ave:A, best:B)
-                for m in self.metrics:
-                    for s in self.stats:
-                        if scoring == "A":
+        
+                # スコアのマージ(ave:A)
+                if scoring == "A":
+                    for m in self.metrics:
+                        for s in self.stats:
                             scores[m][s] += sum(partial_scores[m][s]) / len(partial_scores[m][s])
-                        else:
-                            scores[m][s] += max(partial_scores[m][s])
 
-                if self.return_lengths:
-                    scores["lengths"]["hyp"] += len(" ".join(hyp).split())
-                    if scoring == "A":
+                    if self.return_lengths:
+                        scores["lengths"]["hyp"] += len(" ".join(hyp).split())
                         scores["lengths"]["ref"] += sum(partial_ref_length) / len(partial_ref_length)
-                    else:
-                        scores["lengths"]["ref"] += max(partial_ref_length)
+
+                else:
+                    # スコアのマージ(best:B)
+                    # ベストを選択する場合にソートkey が必要なので一旦
+                    # `rouge-l` の `f` が一番高いものとする
+                    max_val = max(partial_scores["rouge-l"]["f"])
+                    max_idx = partial_scores["rouge-l"]["f"].index(max_val)
+                    for m in self.metrics:
+                        for s in self.stats:
+                            scores[m][s] += partial_scores[m][s][max_idx]
+
+                    if self.return_lengths:
+                        scores["lengths"]["hyp"] += len(" ".join(hyp).split())
+                        scores["lengths"]["ref"] += partial_ref_length[max_idx]
             else:
                 # scoring 指定なしの場合に
                 # ref が<TAB>で複数ある場合は先頭を利用する
