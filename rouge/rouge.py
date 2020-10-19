@@ -56,11 +56,11 @@ class Rouge:
         "rouge-l": lambda hyp, ref, **k:
             rouge_score.rouge_l_summary_level(hyp, ref, **k),
     }
-    DEFAULT_STATS = ["r", "p", "f"]
-    AVAILABLE_STATS = ["r", "p", "f"]
-
+    DEFAULT_STATS = ["f", "p", "r"]
+    AVAILABLE_STATS = ["f", "p", "r"]
+    
     def __init__(self, metrics=None, stats=None, return_lengths=False,
-                 raw_results=False, exclusive=True):
+                 raw_results=False, exclusive=False):
         self.return_lengths = return_lengths
         self.raw_results = raw_results
         self.exclusive = exclusive
@@ -154,10 +154,10 @@ class Rouge:
                 for m in self.metrics:
                     for s in self.stats:
                         if scoring == "A":
-                            scores[m][s] = sum(partial_scores[m][s]) / len(partial_scores[m][s])
+                            scores[m][s] += sum(partial_scores[m][s]) / len(partial_scores[m][s])
                         else:
-                            scores[m][s] = max(partial_scores[m][s])
-                            
+                            scores[m][s] += max(partial_scores[m][s])
+
                 if self.return_lengths:
                     scores["lengths"]["hyp"] += len(" ".join(hyp).split())
                     if scoring == "A":
@@ -178,8 +178,9 @@ class Rouge:
                 if self.return_lengths:
                     scores["lengths"]["hyp"] += len(" ".join(hyp).split())
                     scores["lengths"]["ref"] += len(" ".join(ref).split())
+
             count += 1
-            
+        
         avg_scores = {
             m: {s: scores[m][s] / count for s in self.stats}
             for m in self.metrics
